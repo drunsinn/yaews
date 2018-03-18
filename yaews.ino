@@ -7,6 +7,10 @@
 #include <ESP8266WiFi.h>
 #include <NtpClientLib.h>
 
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
 #ifndef WIFI_CONFIG_H //Fallback if WifiConfig.h dose not exist (not in git repo)
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWD "YOUR_WIFI_PASSWD"
@@ -16,6 +20,10 @@
 int8_t timeZone = 1;
 boolean syncEventTriggered = false; // True if a time even has been triggered
 NTPSyncEvent_t ntpEvent; // Last triggered event
+
+#define DHTPIN            2         // Pin which is connected to the DHT sensor.
+#define DHTTYPE           DHT22     // DHT 22 (AM2302)
+DHT_Unified dht(DHTPIN, DHTTYPE);
 
 void setup() {
   static WiFiEventHandler e1, e2, e3;
