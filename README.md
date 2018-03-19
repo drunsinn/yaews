@@ -1,5 +1,10 @@
 # yaews - Yet Another ESP Weather Station
 
+Arduino project for the ESP8266 Mikrocontroller. The board used is the NodeMCU Amica but others should work as well.
+
+The first LED on the ESP-12 submodule gives an indication about the wifi connection. LED off = Wifi connected
+The second LED on the NodeMCU boad is currently not in use.
+
 # Dependencies
 these librarys can be installed via the arduino library manager
 * [NTPClientLib](https://github.com/gmag11/NtpClient) >= 2.5.0

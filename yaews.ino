@@ -31,9 +31,12 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
 
+  // both LED are low-active
   pinMode(ESP_12_LED_PIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-
+  digitalWrite(ESP_12_LED_PIN, LOW);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
+  
   WiFi.mode(WIFI_STA);
   WiFi.hostname(HOSTNAME);
   WiFi.begin(WIFI_SSID, WIFI_PASSWD);
@@ -79,7 +82,8 @@ void loop() {
 }
 
 void onSTAConnected (WiFiEventStationModeConnected ipInfo) {
-    Serial.printf ("Connected to %s\r\n", ipInfo.ssid.c_str ());
+  Serial.printf ("Connected to %s\r\n", ipInfo.ssid.c_str ());
+  digitalWrite(ESP_12_LED_PIN, HIGH);
 }
 
 // Start NTP only after IP network is connected
@@ -94,19 +98,21 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
 void onSTADisconnected(WiFiEventStationModeDisconnected event_info) {
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
   Serial.printf("Reason: %d\n", event_info.reason);
-  NTP.stop(); // NTP sync can be disabled to avoid sync errors
+  digitalWrite(ESP_12_LED_PIN, LOW);
+  NTP.stop();
 }
 
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
-    if (ntpEvent) {
-        Serial.print("Time Sync error: ");
-        if (ntpEvent == noResponse)
-            Serial.println("NTP server not reachable");
-        else if (ntpEvent == invalidAddress)
-            Serial.println("Invalid NTP server address");
-    } else {
-        Serial.print("Got NTP time: ");
-        Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
+  if (ntpEvent) {
+    Serial.print("Time Sync error: ");
+    if (ntpEvent == noResponse){
+      Serial.println("NTP server not reachable");
+    } else if (ntpEvent == invalidAddress){
+      Serial.println("Invalid NTP server address");
     }
+  } else {
+    Serial.print("Got NTP time: ");
+    Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
+  }
 }
 
