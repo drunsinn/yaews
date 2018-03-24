@@ -1,6 +1,7 @@
 # gitignore rules, based on https://github.com/github/gitignore
 # --- Project specific
 WifiConfig.h
+DatabaseConfig.h
 
 # --- Windows
 # Windows thumbnail cache files

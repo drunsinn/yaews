@@ -1,0 +1,11 @@
+#pragma once
+#ifndef DATABASE_CONFIG_H
+#define DATABASE_CONFIG_H
+
+#define DB_SERVER "example.com"
+#define DB_PORT 8086
+#define DB_USER "user"
+#define DB_PASSWD "passwd"
+#define DB_DATABASE "db"
+
+#endif //DATABASE_CONFIG_H
