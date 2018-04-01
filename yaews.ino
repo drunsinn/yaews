@@ -12,12 +12,12 @@
 #include <DHT_U.h>
 #include <ESPinfluxdb.h>
 
-#ifndef WIFI_CONFIG_H //Fallback if WifiConfig.h dose not exist (not in git repo)
+#ifndef WIFI_CONFIG_H //Fallback if WifiConfig.h does not exist (not in git repo)
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWD "YOUR_WIFI_PASSWD"
 #endif // !WIFI_CONFIG_H
 
-#ifndef DATABASE_CONFIG_H //Fallback if DatabaseConfig.h dose not exist (not in git repo)
+#ifndef DATABASE_CONFIG_H //Fallback if DatabaseConfig.h does not exist (not in git repo)
 #define DB_SERVER "example.com"
 #define DB_PORT 8086
 #define DB_USER "user"
@@ -56,7 +56,7 @@ void setup() {
     syncEventTriggered = true;
     });
 
-  //Callback funktions for Wifi events
+  // Callback functions for Wifi events
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   e3 = WiFi.onStationModeConnected(onSTAConnected);
@@ -72,7 +72,6 @@ void loop() {
     }
 
     if ((millis() - last) > 5100) {
-        //Serial.println(millis() - last);
         last = millis();
         Serial.print(i);
         Serial.print(" ");
