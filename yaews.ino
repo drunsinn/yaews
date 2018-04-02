@@ -10,7 +10,6 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
-#include <ESPinfluxdb.h>
 
 #ifndef WIFI_CONFIG_H //Fallback if WifiConfig.h does not exist (not in git repo)
 #define WIFI_SSID "YOUR_WIFI_SSID"
@@ -24,20 +23,17 @@
 #define DB_PASSWD "passwd"
 #define DB_DATABASE "db"
 #endif //!DATABASE_CONFIG_H
-Influxdb influxdb(DB_SERVER, DB_PORT);
 
 #define NTP_SERVER "ptbtime2.ptb.de"
 int8_t timeZone = 1;
 boolean syncEventTriggered = false; // True if a time even has been triggered
 NTPSyncEvent_t ntpEvent; // Last triggered event
 
-#define DHTPIN 2 // Pin which is connected to the DHT sensor.
-#define DHTTYPE DHT22 // DHT 22 (AM2302)
 DHT_Unified dht(DHTPIN, DHTTYPE);
 
 void setup() {
   static WiFiEventHandler e1, e2, e3;
-  
+
   Serial.begin(115200);
   Serial.println();
 
@@ -46,7 +42,7 @@ void setup() {
   digitalWrite(ESP_12_LED_PIN, LOW);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
-  
+
   WiFi.mode(WIFI_STA);
   WiFi.hostname(HOSTNAME);
   WiFi.begin(WIFI_SSID, WIFI_PASSWD);
@@ -60,12 +56,36 @@ void setup() {
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   e3 = WiFi.onStationModeConnected(onSTAConnected);
+
+  dht.begin();
+  sensor_t sensor;
+  dht.temperature().getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.println("Temperature");
+  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" *C");
+  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" *C");
+  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" *C");
+  Serial.println("------------------------------------");
+  // Print humidity sensor details.
+  dht.humidity().getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.println("Humidity");
+  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println("%");
+  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println("%");
+  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println("%");
+  Serial.println("------------------------------------");
 }
 
 void loop() {
     static int i = 0;
     static int last = 0;
-    
+
     if (syncEventTriggered) {
         processSyncEvent(ntpEvent);
         syncEventTriggered = false;
@@ -84,8 +104,27 @@ void loop() {
         Serial.print("Uptime: ");
         Serial.print(NTP.getUptimeString());
         Serial.print(" since ");
-        Serial.println(NTP.getTimeDateString(NTP.getFirstSync()).c_str());
+        Serial.print(NTP.getTimeDateString(NTP.getFirstSync()).c_str());
 
+        sensors_event_t event;
+        // Get temperature event and print its value.
+        dht.temperature().getEvent(&event);
+        if (isnan(event.temperature)) {
+          Serial.println("Error reading temperature!");
+        } else {
+          Serial.print(" Temperature: ");
+          Serial.print(event.temperature);
+          Serial.print(" *C");
+        }
+        // Get humidity event and print its value.
+        dht.humidity().getEvent(&event);
+        if (isnan(event.relative_humidity)) {
+          Serial.println("Error reading humidity!");
+        } else {
+          Serial.print(" Humidity: ");
+          Serial.print(event.relative_humidity);
+          Serial.println("%");
+        }
         i++;
     }
 }
@@ -127,4 +166,3 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent) {
     Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
   }
 }
-

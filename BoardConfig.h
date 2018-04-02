@@ -4,6 +4,9 @@
 
 #define ESP_12_LED_PIN 2
 
+#define DHTPIN 0 // Pin which is connected to the DHT sensor.
+#define DHTTYPE DHT22 // DHT 22 (AM2302)
+
 #define HOSTNAME "yaews"
 
 /*

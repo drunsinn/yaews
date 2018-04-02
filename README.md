@@ -5,6 +5,11 @@ Arduino project for the ESP8266 Mikrocontroller. The board used is the NodeMCU A
 The first LED on the ESP-12 submodule gives an indication about the wifi connection. LED off = Wifi connected
 The second LED on the NodeMCU boad is currently not in use.
 
+# Hardware
+
+## DHT22/AM2302
+The DAT-Pin of the DHT22 sensor is connected to GPIO0. This corresponds to D3 on the NodeMCU Amica board.
+
 # Dependencies
 
 These librarys can be installed via the arduino library manager:
