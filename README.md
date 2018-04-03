@@ -10,6 +10,10 @@ The second LED on the NodeMCU boad is currently not in use.
 ## DHT22/AM2302
 The DAT-Pin of the DHT22 sensor is connected to GPIO0. This corresponds to D3 on the NodeMCU Amica board.
 
+## BME280
+configure I2C-Adress in BoadConfig.h
+connect SCL to D1 and SDA to D2
+
 # Dependencies
 
 These librarys can be installed via the arduino library manager:
@@ -17,6 +21,7 @@ These librarys can be installed via the arduino library manager:
 * [Time](http://playground.arduino.cc/code/time) >= 1.5.0 (search for `timekeeping` in library manager)
 * [Adafruit Unified Sensor](https://github.com/adafruit/Adafruit_Sensor) >= 1.0.2
 * [DHT sensor library](https://github.com/adafruit/DHT-sensor-library) >= 1.3.0
+* [Adafruit_BME280](https://github.com/adafruit/Adafruit_BME280_Library) >= 1.0.7
 
 These librarys currently have to be installed manually:
 * [ESP_influxdb](https://github.com/hwwong/ESP_influxdb)

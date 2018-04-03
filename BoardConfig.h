@@ -7,7 +7,15 @@
 #define DHTPIN 0 // Pin which is connected to the DHT sensor.
 #define DHTTYPE DHT22 // DHT 22 (AM2302)
 
+/*
+ * I2C-adress of the BME280 sensor
+ * if SDO-Pin is connected to GND: 0x76
+ * if SDO-Pin is connected to VCC: 0x77
+ */
+#define BME280_address 0x77
+
 #define HOSTNAME "yaews"
+
 
 /*
  * D0  = GPIO16 = LED 2

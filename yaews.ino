@@ -10,6 +10,8 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
+#include <Wire.h>
+#include <Adafruit_BME280.h>
 
 #ifndef WIFI_CONFIG_H //Fallback if WifiConfig.h does not exist (not in git repo)
 #define WIFI_SSID "YOUR_WIFI_SSID"
@@ -30,6 +32,9 @@ boolean syncEventTriggered = false; // True if a time even has been triggered
 NTPSyncEvent_t ntpEvent; // Last triggered event
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+Adafruit_BME280 bme; // I2C
 
 void setup() {
   static WiFiEventHandler e1, e2, e3;
@@ -80,6 +85,11 @@ void setup() {
   Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println("%");
   Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println("%");
   Serial.println("------------------------------------");
+  
+  if (! bme.begin(BME280_address)) {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    while (1);
+  }
 }
 
 void loop() {
@@ -125,8 +135,32 @@ void loop() {
           Serial.print(event.relative_humidity);
           Serial.println("%");
         }
+
+        bme.takeForcedMeasurement(); // has no effect in normal mode
+        printValues();
         i++;
     }
+}
+
+void printValues() {
+    Serial.print("Temperature = ");
+    Serial.print(bme.readTemperature());
+    Serial.println(" *C");
+
+    Serial.print("Pressure = ");
+
+    Serial.print(bme.readPressure() / 100.0F);
+    Serial.println(" hPa");
+
+    Serial.print("Approx. Altitude = ");
+    Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+    Serial.println(" m");
+
+    Serial.print("Humidity = ");
+    Serial.print(bme.readHumidity());
+    Serial.println(" %");
+
+    Serial.println();
 }
 
 // Callback for successfull connection to Wifi
