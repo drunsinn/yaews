@@ -2,6 +2,7 @@
 # --- Project specific
 WifiConfig.h
 DatabaseConfig.h
+NetworkConfig.h
 
 # --- Windows
 # Windows thumbnail cache files

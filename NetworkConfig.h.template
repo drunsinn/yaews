@@ -1,0 +1,16 @@
+#pragma once
+#ifndef NETWORK_CONFIG_H
+#define NETWORK_CONFIG_H
+
+#define WIFI_SSID "SSID"
+#define WIFI_PASSWD "Password"
+
+#define DB_SERVER "example.com"
+#define DB_PORT 8086
+#define DB_USER "user"
+#define DB_PASSWD "passwd"
+#define DB_DATABASE_URI "/write?db=WeatherDataDB"
+
+#define NTP_SERVER "ptbtime2.ptb.de"
+
+#endif //NETWORK_CONFIG_H

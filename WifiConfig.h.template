@@ -1,8 +1,0 @@
-#pragma once
-#ifndef WIFI_CONFIG_H
-#define WIFI_CONFIG_H
-
-#define WIFI_SSID "SSID"
-#define WIFI_PASSWD "Password"
-
-#endif //WIFI_CONFIG_H

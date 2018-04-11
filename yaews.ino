@@ -2,26 +2,22 @@
  * yaews - Yet Another ESP Weather Station
  */
 #include "BoardConfig.h"
-#include "WifiConfig.h"
-//#include "DatabaseConfig.h"
+#include "NetworkConfig.h"
 #include <Wire.h>
 #include <TimeLib.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 #include <NtpClientLib.h>
 #include <Adafruit_Sensor.h>
 #include <DHT_U.h>
 
-#ifndef WIFI_CONFIG_H //Fallback if WifiConfig.h does not exist (not in git repo)
-#define WIFI_SSID "YOUR_WIFI_SSID"
-#define WIFI_PASSWD "YOUR_WIFI_PASSWD"
-#endif // !WIFI_CONFIG_H
-
-#define NTP_SERVER "ptbtime2.ptb.de"
 int8_t timeZone = 1;
 boolean syncEventTriggered = false; // True if a time even has been triggered
 NTPSyncEvent_t ntpEvent; // Last triggered event
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
+
+HTTPClient http;
 
 void setup() {
   static WiFiEventHandler e1, e2, e3;
@@ -50,73 +46,67 @@ void setup() {
   e3 = WiFi.onStationModeConnected(onSTAConnected);
 
   dht.begin();
-  sensor_t sensor;
-  dht.temperature().getSensor(&sensor);
-  //Serial.println("------------------------------------");
-  //Serial.println("Temperature");
-  //Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  //Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  //Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  //Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" *C");
-  //Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" *C");
-  //Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" *C");
-  //Serial.println("------------------------------------");
-  // Print humidity sensor details.
-  dht.humidity().getSensor(&sensor);
-  //Serial.println("------------------------------------");
-  //Serial.println("Humidity");
-  //Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  //Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  //Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  //Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println("%");
-  //Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println("%");
-  //Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println("%");
-  //Serial.println("------------------------------------");
 }
 
 void loop() {
-    static int i = 0;
-    static int last = 0;
+  static int i = 0;
+  static int last = 0;
 
-    if (syncEventTriggered) {
-        processSyncEvent(ntpEvent);
-        syncEventTriggered = false;
+  if (syncEventTriggered) {
+    processSyncEvent(ntpEvent);
+    syncEventTriggered = false;
+  }
+
+  if ((millis() - last) > 5100) {
+    last = millis();
+    Serial.print(NTP.getTimeDateString());
+    Serial.print(NTP.isSummerTime() ? " Summer Time. " : " Winter Time. ");
+
+    sensors_event_t event;
+    dht.temperature().getEvent(&event);
+    Serial.print("DHT22 Temperature: ");
+    if (isnan(event.temperature)) {
+      Serial.print("nan °C");
+    } else {
+      Serial.printf("%.2f °C", event.temperature);
     }
 
-    if ((millis() - last) > 5100) {
-        last = millis();
-        //Serial.print(i);
-        //Serial.print(" ");
-        Serial.print(NTP.getTimeDateString());
-        Serial.print(NTP.isSummerTime() ? " Summer Time. " : " Winter Time. ");
-        //Serial.print("WiFi is ");
-        //Serial.print(WiFi.isConnected() ? "connected" : "not connected");
-        //Serial.print(". ");
-        //Serial.print("Uptime: ");
-        //Serial.print(NTP.getUptimeString());
-        //Serial.print(" since ");
-        //Serial.println(NTP.getTimeDateString(NTP.getFirstSync()).c_str());
-
-        sensors_event_t event;
-        // Get temperature event and print its value.
-        dht.temperature().getEvent(&event);
-        Serial.print("DHT22 Temperature: ");
-        if (isnan(event.temperature)) {
-          Serial.print("nan °C");
-        } else {
-          Serial.printf("%.2f °C", event.temperature);
-        }
-        // Get humidity event and print its value.
-        dht.humidity().getEvent(&event);
-        Serial.print(" Humidity: ");
-        if (isnan(event.relative_humidity)) {
-          Serial.print("nan %\r\n");
-        } else {
-          Serial.printf("%.2f %\r\n", event.relative_humidity);
-        }
-
-        //i++;
+    dht.humidity().getEvent(&event);
+    Serial.print(" Humidity: ");
+    if (isnan(event.relative_humidity)) {
+      Serial.print("nan %\r\n");
+    } else {
+      Serial.printf("%.2f %\r\n", event.relative_humidity);
     }
+
+    if(WiFi.status()== WL_CONNECTED){
+      sendValues(event.temperature, event.relative_humidity);
+    }else{
+      Serial.println("Error in WiFi connection");
+    }
+  }
+}
+
+void sendValues(float temperature, float humidity) {
+  String influxData = "";
+  int httpCode = -1;
+
+  // Set data type and add tags
+  influxData += "air_temperature,house=test,position=balcony";
+  influxData += " value=" + String(temperature) + "\n";
+  influxData += "air_humidity,house=test,position=balcony";
+  influxData += " value=" + String(humidity) + "\n";
+
+  http.begin(DB_SERVER, DB_PORT, DB_DATABASE_URI);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  http.setAuthorization(DB_USER, DB_PASSWD);
+  http.setTimeout(5000);
+
+  while(httpCode == -1){
+    httpCode = http.POST(influxData);
+    http.writeToStream(&Serial);
+  }
+  http.end();  //Close connection
 }
 
 // Callback for successfull connection to Wifi
