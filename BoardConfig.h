@@ -9,6 +9,8 @@
 
 #define HOSTNAME "yaews"
 
+#define SAMPLE_INTERVAL (1000UL * 60 * 1)
+
 /*
  * D0  = GPIO16 = LED 2
  * D1  = GPIO5  = SCL

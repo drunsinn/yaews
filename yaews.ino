@@ -19,6 +19,9 @@ DHT_Unified dht(DHTPIN, DHTTYPE);
 
 HTTPClient http;
 
+static float validTemperatur = 0.0f;
+static float validHumidity = 0.0f;
+
 void setup() {
   static WiFiEventHandler e1, e2, e3;
 
@@ -49,16 +52,17 @@ void setup() {
 }
 
 void loop() {
-  static int i = 0;
-  static int last = 0;
+  static unsigned long lastSampleTime = 0 - SAMPLE_INTERVAL;
+  unsigned long now = millis();
+  boolean readingValid = true;
 
   if (syncEventTriggered) {
     processSyncEvent(ntpEvent);
     syncEventTriggered = false;
   }
 
-  if ((millis() - last) > 5100) {
-    last = millis();
+  if (now - lastSampleTime >= SAMPLE_INTERVAL) {
+    lastSampleTime = now;
     Serial.print(NTP.getTimeDateString());
     Serial.print(NTP.isSummerTime() ? " Summer Time. " : " Winter Time. ");
 
@@ -67,46 +71,60 @@ void loop() {
     Serial.print("DHT22 Temperature: ");
     if (isnan(event.temperature)) {
       Serial.print("nan °C");
+      readingValid = false;
     } else {
-      Serial.printf("%.2f °C", event.temperature);
+      validTemperatur = event.temperature;
+      Serial.printf("%.2f °C", validTemperatur);
     }
 
     dht.humidity().getEvent(&event);
     Serial.print(" Humidity: ");
     if (isnan(event.relative_humidity)) {
       Serial.print("nan %\r\n");
+      readingValid = false;
     } else {
-      Serial.printf("%.2f %\r\n", event.relative_humidity);
+      validHumidity = event.relative_humidity;
+      Serial.printf("%.2f %\r\n", validHumidity);
     }
 
-    if(WiFi.status()== WL_CONNECTED){
-      sendValues(event.temperature, event.relative_humidity);
-    }else{
-      Serial.println("Error in WiFi connection");
+    if (readingValid == true) {
+      if((WiFi.status() == WL_CONNECTED)){
+        sendValues();
+      }else{
+        Serial.println("Error in WiFi connection");
+      }
+    } else {
+      Serial.println("One or more sensor reading invalid");
     }
   }
 }
 
-void sendValues(float temperature, float humidity) {
+void sendValues() {
+  digitalWrite(LED_BUILTIN, LOW);
   String influxData = "";
+  char strBuffer[10];
   int httpCode = -1;
 
   // Set data type and add tags
-  influxData += "air_temperature,house=test,position=balcony";
-  influxData += " value=" + String(temperature) + "\n";
-  influxData += "air_humidity,house=test,position=balcony";
-  influxData += " value=" + String(humidity) + "\n";
+  influxData += "air_temperature,house=test,position=balcony value=";
+  influxData += dtostrf(validTemperatur, 5, 2, strBuffer);
+  influxData += "\n";
+  influxData += "air_humidity,house=test,position=balcony value=";
+  influxData += dtostrf(validHumidity, 5, 2, strBuffer);
+  influxData += "\n";
+  // Serial.println(influxData);
 
   http.begin(DB_SERVER, DB_PORT, DB_DATABASE_URI);
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
   http.setAuthorization(DB_USER, DB_PASSWD);
-  http.setTimeout(5000);
+  http.setTimeout(2000);
 
   while(httpCode == -1){
     httpCode = http.POST(influxData);
     http.writeToStream(&Serial);
   }
-  http.end();  //Close connection
+  http.end();
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 // Callback for successfull connection to Wifi
