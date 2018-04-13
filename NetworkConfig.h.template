@@ -2,6 +2,8 @@
 #ifndef NETWORK_CONFIG_H
 #define NETWORK_CONFIG_H
 
+#define HOSTNAME "hostname"
+
 #define WIFI_SSID "SSID"
 #define WIFI_PASSWD "Password"
 
@@ -9,8 +11,13 @@
 #define DB_PORT 8086
 #define DB_USER "user"
 #define DB_PASSWD "passwd"
-#define DB_DATABASE_URI "/write?db=WeatherDataDB"
+define DB_NAME "WeatherDataDB"
+#define DB_DATABASE_WRITE_URI "/write?db=" DB_NAME
+#define DB_DATABASE_CREATE_URI "/query?q=CREATE+DATABASE+" DB_NAME
 
+#define NTP_TIMEZONE +1
+#define NTP_USE_DST true
+#define NTP_RESYNC_INTERVAL 1800 //in seconds
 #define NTP_SERVER "ptbtime2.ptb.de"
 
 #endif //NETWORK_CONFIG_H

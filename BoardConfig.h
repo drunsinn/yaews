@@ -7,9 +7,11 @@
 #define DHTPIN 0 // Pin which is connected to the DHT sensor.
 #define DHTTYPE DHT22 // DHT 22 (AM2302)
 
-#define HOSTNAME "yaews"
-
 #define SAMPLE_INTERVAL (1000UL * 60 * 1)
+
+#define BME280_ADDR 0x76
+// SDO to GND: slave address is 0x76
+// SDO to VCC: slave address is 0x77
 
 /*
  * D0  = GPIO16 = LED 2

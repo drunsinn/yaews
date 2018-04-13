@@ -9,23 +9,22 @@
 #include <ESP8266HTTPClient.h>
 #include <NtpClientLib.h>
 #include <Adafruit_Sensor.h>
-#include <DHT_U.h>
+#include <Adafruit_BME280.h>
 
-int8_t timeZone = 1;
-boolean syncEventTriggered = false; // True if a time even has been triggered
-NTPSyncEvent_t ntpEvent; // Last triggered event
-
-DHT_Unified dht(DHTPIN, DHTTYPE);
+boolean syncEventTriggered = false;
+NTPSyncEvent_t ntpEvent;
 
 HTTPClient http;
 
-static float validTemperatur = 0.0f;
-static float validHumidity = 0.0f;
+Adafruit_BME280 bme;
+boolean bmeDisabled = false;
 
 void setup() {
   static WiFiEventHandler e1, e2, e3;
-
+ 
   Serial.begin(115200);
+  Serial.println();
+  Serial.println();
   Serial.println();
 
   // both LED are low-active
@@ -48,13 +47,23 @@ void setup() {
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   e3 = WiFi.onStationModeConnected(onSTAConnected);
 
-  dht.begin();
+  if (!bme.begin(BME280_ADDR, &Wire)) {
+    bmeDisabled = true;
+    Serial.println("BME 280 not found, disable reading");
+  } else {
+    bme.setSampling(Adafruit_BME280::MODE_FORCED,
+                    Adafruit_BME280::SAMPLING_X1, // temperature
+                    Adafruit_BME280::SAMPLING_X1, // pressure
+                    Adafruit_BME280::SAMPLING_X1, // humidity
+                    Adafruit_BME280::FILTER_OFF   );
+  }
+//  http.setReuse(true);
+  Serial.println("Setup finished");
 }
 
 void loop() {
   static unsigned long lastSampleTime = 0 - SAMPLE_INTERVAL;
   unsigned long now = millis();
-  boolean readingValid = true;
 
   if (syncEventTriggered) {
     processSyncEvent(ntpEvent);
@@ -63,66 +72,63 @@ void loop() {
 
   if (now - lastSampleTime >= SAMPLE_INTERVAL) {
     lastSampleTime = now;
-    Serial.print(NTP.getTimeDateString());
-    Serial.print(NTP.isSummerTime() ? " Summer Time. " : " Winter Time. ");
+    
+    Serial.print (NTP.getTimeDateString ());
+    Serial.print (" ");
+    Serial.print (NTP.isSummerTime() ? "Summer Time. " : "Winter Time. ");
+    Serial.print ("WiFi is ");
+    Serial.print (WiFi.isConnected() ? "connected" : "not connected");
+    Serial.print (". ");
+    Serial.print ("Uptime: ");
+    Serial.print (NTP.getUptimeString());
+    Serial.print (" since ");
+    Serial.println (NTP.getTimeDateString(NTP.getFirstSync()).c_str());
 
-    sensors_event_t event;
-    dht.temperature().getEvent(&event);
-    Serial.print("DHT22 Temperature: ");
-    if (isnan(event.temperature)) {
-      Serial.print("nan °C");
-      readingValid = false;
-    } else {
-      validTemperatur = event.temperature;
-      Serial.printf("%.2f °C", validTemperatur);
+    if (!bmeDisabled) {
+      bme.takeForcedMeasurement();
     }
 
-    dht.humidity().getEvent(&event);
-    Serial.print(" Humidity: ");
-    if (isnan(event.relative_humidity)) {
-      Serial.print("nan %\r\n");
-      readingValid = false;
-    } else {
-      validHumidity = event.relative_humidity;
-      Serial.printf("%.2f %\r\n", validHumidity);
-    }
-
-    if (readingValid == true) {
-      if((WiFi.status() == WL_CONNECTED)){
-        sendValues();
-      }else{
-        Serial.println("Error in WiFi connection");
-      }
-    } else {
-      Serial.println("One or more sensor reading invalid");
+    if (WiFi.isConnected()){
+      updateInfluxDB();
     }
   }
 }
 
-void sendValues() {
+void updateInfluxDB() {
   digitalWrite(LED_BUILTIN, LOW);
   String influxData = "";
-  char strBuffer[10];
+  char strBuffer[15];
   int httpCode = -1;
 
-  // Set data type and add tags
-  influxData += "air_temperature,house=test,position=balcony value=";
-  influxData += dtostrf(validTemperatur, 5, 2, strBuffer);
+  if (!bmeDisabled) {
+    // Set data type and add tags
+    influxData += "air_temperature,house=test,position=balcony value=";
+    influxData += dtostrf(bme.readTemperature(), 5, 2, strBuffer);
+    influxData += "\n";
+    influxData += "air_humidity,house=test,position=balcony value=";
+    influxData += dtostrf(bme.readHumidity(), 5, 2, strBuffer);
+    influxData += "\n";
+    influxData += "air_preassure,house=test,position=balcony value=";
+    influxData += dtostrf(bme.readPressure() / 100.0f, 5, 2, strBuffer);
+    influxData += "\n";
+  }
+  influxData += "local_time,house=test,position=balcony value=";
+  influxData += itoa(now(), strBuffer, 10);
   influxData += "\n";
-  influxData += "air_humidity,house=test,position=balcony value=";
-  influxData += dtostrf(validHumidity, 5, 2, strBuffer);
+  influxData += "up_time,house=test,position=balcony value=";
+  influxData += itoa(NTP.getUptime(), strBuffer, 10);
   influxData += "\n";
-  // Serial.println(influxData);
 
-  http.begin(DB_SERVER, DB_PORT, DB_DATABASE_URI);
+  http.setTimeout(2000);
+  http.begin(DB_SERVER, DB_PORT, DB_DATABASE_WRITE_URI);
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
   http.setAuthorization(DB_USER, DB_PASSWD);
-  http.setTimeout(2000);
-
-  while(httpCode == -1){
-    httpCode = http.POST(influxData);
-    http.writeToStream(&Serial);
+  
+  httpCode = http.POST(influxData);
+  if (httpCode >= 400){
+    Serial.println(http.getString());
   }
+
   http.end();
   digitalWrite(LED_BUILTIN, HIGH);
 }
@@ -138,8 +144,8 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
   Serial.printf("Connected: %s\r\n", WiFi.status() == WL_CONNECTED ? "yes" : "no");
 
-  NTP.begin(NTP_SERVER, timeZone, true);
-  NTP.setInterval(63);
+  NTP.begin(NTP_SERVER, NTP_TIMEZONE, NTP_USE_DST);
+  NTP.setInterval(NTP_RESYNC_INTERVAL);
 }
 
 // Manage network disconnection
@@ -150,7 +156,7 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info) {
   NTP.stop();
 }
 
-// Callback for NTP connection
+//// Callback for NTP connection
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
   if (ntpEvent) {
     Serial.print("Time Sync error: ");
